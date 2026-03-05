@@ -23,6 +23,7 @@ import {
   IconChevronRight,
   IconLogout,
   IconUser,
+  IconUsers,
 } from '@tabler/icons-react';
 import { useMantineColorScheme } from '@mantine/core';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { label: 'Modèles', icon: IconClipboardList, path: '/kilasy-lasitra' },
   { label: 'Registre', icon: IconClipboardList, path: '/registre' },
   { label: 'Statistiques', icon: IconChartBar, path: '/stats' },
+  { label: 'Utilisateurs', icon: IconUsers, path: '/users' },
 ];
 
 const ICON_SIZE = 22;

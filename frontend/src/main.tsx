@@ -1,10 +1,10 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
 import { DatesProvider } from '@mantine/dates';
+import { Notifications } from '@mantine/notifications';
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
+import '@mantine/notifications/styles.css';
 import './index.css';
 
 // Pages
@@ -14,6 +14,7 @@ import Kilasy from './pages/Kilasy';
 import Registre from './pages/Registre';
 import Stats from './pages/Stats';
 import KilasyLasitra from './pages/KilasyLasitra';
+import Users from './pages/Users';
 
 // Auth context
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -21,6 +22,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 // Layout
 import AdminLayout from './components/AdminLayout';
 import { Outlet } from 'react-router-dom';
+import ReactDOM from 'react-dom/client';
 
 function ProtectedRoute() {
   const { user, loading } = useAuth();
@@ -39,6 +41,7 @@ function ProtectedRoute() {
 function App() {
   return (
     <MantineProvider defaultColorScheme="auto">
+      <Notifications position="top-right" />
       <DatesProvider settings={{ locale: 'fr', firstDayOfWeek: 1, weekendDays: [0] }}>
         <BrowserRouter>
           <AuthProvider>
@@ -56,6 +59,7 @@ function App() {
                 <Route path="kilasy-lasitra" element={<KilasyLasitra />} />
                 <Route path="registre" element={<Registre />} />
                 <Route path="stats" element={<Stats />} />
+                <Route path="users" element={<Users />} />
               </Route>
               </Route>
             </Routes>

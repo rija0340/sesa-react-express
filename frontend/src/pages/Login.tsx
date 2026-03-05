@@ -10,9 +10,19 @@ import {
   Text,
   Alert,
   Center,
+  Modal,
+  Stack,
+  MultiSelect,
+  Group,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconLock, IconAlertCircle } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconLock,
+  IconAlertCircle,
+  IconUserPlus,
+} from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -20,6 +30,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [registerOpened, { open: openRegister, close: closeRegister }] = useDisclosure(false);
 
   const form = useForm({
     initialValues: {
@@ -29,6 +40,22 @@ export default function Login() {
     validate: {
       username: (value) => (value ? null : "Nom d'utilisateur requis"),
       password: (value) => (value ? null : 'Mot de passe requis'),
+    },
+  });
+
+  const registerForm = useForm({
+    initialValues: {
+      username: '',
+      password: '',
+      roles: [] as string[],
+    },
+    validate: {
+      username: (value) =>
+        value.length < 3 ? 'Minimum 3 caractères' : null,
+      password: (value) =>
+        value.length < 6 ? 'Minimum 6 caractères' : null,
+      roles: (value) =>
+        value.length === 0 ? 'Sélectionnez au moins un rôle' : null,
     },
   });
 
@@ -42,6 +69,37 @@ export default function Login() {
       setError(err.message || 'Erreur de connexion');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRegister = async (values: typeof registerForm.values) => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Échec de la création');
+      }
+
+      notifications.show({
+        title: 'Succès',
+        message: 'Compte créé ! Connectez-vous maintenant.',
+        color: 'green',
+      });
+
+      registerForm.reset();
+      closeRegister();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erreur',
+        message: error.message,
+        color: 'red',
+      });
     }
   };
 
@@ -102,11 +160,65 @@ export default function Login() {
             Se connecter
           </Button>
 
+          <Button
+            fullWidth
+            mt="sm"
+            variant="outline"
+            color="gray"
+            leftSection={<IconUserPlus size={18} />}
+            onClick={openRegister}
+          >
+            Créer un compte
+          </Button>
+
           <Box mt="xl" ta="center" c="dimmed" fz="xs" p="xs" style={{ backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
             <Text span fw={700}>Accès de test</Text> : raberia / random123
           </Box>
         </form>
       </Paper>
+
+      <Modal
+        opened={registerOpened}
+        onClose={() => {
+          closeRegister();
+          registerForm.reset();
+        }}
+        title="Créer un compte"
+        centered
+      >
+        <form onSubmit={registerForm.onSubmit(handleRegister)}>
+          <Stack>
+            <TextInput
+              label="Nom d'utilisateur"
+              placeholder="identifiant"
+              required
+              {...registerForm.getInputProps('username')}
+            />
+            <PasswordInput
+              label="Mot de passe"
+              placeholder="********"
+              required
+              {...registerForm.getInputProps('password')}
+            />
+            <MultiSelect
+              label="Rôles"
+              placeholder="Sélectionnez les rôles"
+              data={[
+                { value: 'admin', label: 'Administrateur' },
+                { value: 'user', label: 'Utilisateur' },
+              ]}
+              required
+              {...registerForm.getInputProps('roles')}
+            />
+            <Group justify="flex-end" mt="md">
+              <Button variant="outline" onClick={closeRegister}>
+                Annuler
+              </Button>
+              <Button type="submit">Créer</Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
     </Box>
   );
 }

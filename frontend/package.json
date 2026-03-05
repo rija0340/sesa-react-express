@@ -12,6 +12,7 @@
     "@mantine/dates": "^7.17.7",
     "@mantine/form": "^7.17.7",
     "@mantine/hooks": "^7.17.7",
+    "@mantine/notifications": "^7.17.8",
     "@tabler/icons-react": "^3.38.0",
     "dayjs": "^1.11.19",
     "jspdf": "^4.2.0",
