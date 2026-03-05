@@ -7,7 +7,6 @@ import {
   SimpleGrid,
   Group,
   Select,
-  RingProgress,
   Badge,
   Loader,
   Alert,
@@ -140,6 +139,8 @@ interface StatsData {
     moyennePresence: number;
     moyenneApprentissage: number;
     totalFanatitra: number;
+    totalRegistres?: number;
+    numSabbats?: number;
   };
   data: RegistreData[];
 }
@@ -598,10 +599,14 @@ export default function Stats() {
           rowsForInd[rowKey].byColBase[colKey] = (rowsForInd[rowKey].byColBase[colKey] || 0) + baseVal;
         });
 
+        // Calculate grand total for percentage calculation
+        const grandTotal = Object.values(rowsForInd).reduce((sum: number, r: any) => sum + r.total, 0);
+
         Object.values(rowsForInd).forEach((r: any) => {
           const numSTotal = new Set(raw.map((x) => x.date)).size || 1;
           r.average = r.total / numSTotal;
-          r.percentage = r.baseSum > 0 ? (r.total / r.baseSum) * 100 : 0;
+          // Percentage is now calculated against grand total, not baseSum
+          r.percentage = grandTotal > 0 ? (r.total / grandTotal) * 100 : 0;
         });
 
         return {
@@ -1008,48 +1013,44 @@ export default function Stats() {
               <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
                 <StatCard
                   title="Membres Présents"
-                  value={numSabbats > 1 ? Math.round(statsData.statistiques.totalMembresTonga / numSabbats) : statsData.statistiques.totalMembresTonga}
+                  value={statsData.statistiques.totalMembresTonga || 0}
                   suffix={`/ ${totalEffectiveMembers}`}
                   color="indigo"
                   icon={IconUsers}
                   {...(prevStatsData &&
                     calculateTrend(
-                      numSabbats > 1 ? Math.round(statsData.statistiques.totalMembresTonga / numSabbats) : statsData.statistiques.totalMembresTonga,
-                      prevStatsData.statistiques.totalMembresTonga
+                      statsData.statistiques.totalMembresTonga || 0,
+                      prevStatsData.statistiques.totalMembresTonga || 0
                     ))}
                 />
                 <StatCard
                   title="Présence Moyenne"
-                  value={statsData.statistiques.moyennePresence}
+                  value={statsData.statistiques.moyennePresence || 0}
                   suffix="%"
                   color="teal"
                   icon={IconChartLine}
                   {...(prevStatsData &&
-                    calculateTrend(statsData.statistiques.moyennePresence, prevStatsData.statistiques.moyennePresence))}
+                    calculateTrend(statsData.statistiques.moyennePresence || 0, prevStatsData.statistiques.moyennePresence || 0))}
                 />
                 <StatCard
                   title="Apprentissage"
-                  value={statsData.statistiques.moyenneApprentissage}
+                  value={statsData.statistiques.moyenneApprentissage || 0}
                   suffix="%"
                   color="cyan"
                   icon={IconBook}
                   {...(prevStatsData &&
-                    calculateTrend(statsData.statistiques.moyenneApprentissage, prevStatsData.statistiques.moyenneApprentissage))}
+                    calculateTrend(statsData.statistiques.moyenneApprentissage || 0, prevStatsData.statistiques.moyenneApprentissage || 0))}
                 />
                 <StatCard
                   title="Total Offrandes"
-                  value={
-                    numSabbats > 1
-                      ? Math.round((matrix?.rows?.['fanatitra']?.total ?? 0) / numSabbats)
-                      : (matrix?.rows?.['fanatitra']?.total ?? 0)
-                  }
+                  value={statsData.statistiques.totalFanatitra || 0}
                   suffix="Ar"
                   color="yellow"
                   icon={IconCash}
                   {...(prevStatsData &&
                     calculateTrend(
-                      numSabbats > 1 ? Math.round((matrix?.rows?.['fanatitra']?.total ?? 0) / numSabbats) : (matrix?.rows?.['fanatitra']?.total ?? 0),
-                      prevStatsData.statistiques.totalFanatitra
+                      statsData.statistiques.totalFanatitra || 0,
+                      prevStatsData.statistiques.totalFanatitra || 0
                     ))}
                 />
               </SimpleGrid>
@@ -1170,13 +1171,92 @@ export default function Stats() {
           ) : null}
 
           {/* Main Matrix Table(s) */}
-          {viewMode !== 'dashboard' && matrix && (
+          {(viewMode !== 'dashboard' || periodType === 'sabata') && matrix && !matrix.isComparison && (
             <>
-              {(matrix.isComparison ? matrix.tables : [matrix]).map((table: any, _: number) => (
+              <Paper shadow="sm" radius="md" p="md" withBorder>
+                <Group justify="space-between" mb="md">
+                  <Title order={4}>
+                    {periodType === 'sabata' ? 'Tatitra Sabata' : 'Récapitulatif Périodique'}
+                  </Title>
+                  <Badge variant="light" size="lg">
+                    {statsData.periode.du} au {statsData.periode.au}
+                  </Badge>
+                </Group>
+
+                <ScrollArea>
+                  <Table striped withTableBorder withColumnBorders highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th style={{ minWidth: 200, backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                          Rubrique
+                        </Table.Th>
+                        {matrix.columns.map((col: any) => (
+                          <Table.Th key={col.key} ta="center" style={{ minWidth: 80 }}>
+                            {col.label}
+                          </Table.Th>
+                        ))}
+                        <Table.Th
+                          ta="center"
+                          style={{ width: 100, backgroundColor: 'var(--mantine-color-orange-0)', color: 'var(--mantine-color-orange-9)' }}
+                        >
+                          MOYENNE
+                        </Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {INDICATORS.map((item: any) => {
+                        const rowData = matrix.rows?.[item.key];
+                        if (!rowData) return null;
+
+                        const rowLabel = rowData.label;
+                        const rowFormat = item.format;
+
+                        return (
+                          <Table.Tr key={item.key}>
+                            <Table.Td fw={600}>{rowLabel}</Table.Td>
+                            {matrix.columns.map((col: any) => {
+                              const val = rowData.byCol?.[col.key] || 0;
+
+                              return (
+                                <Table.Td key={col.key} ta="center">
+                                  <Text size="sm">
+                                    {rowFormat === 'money'
+                                      ? Math.round(val || 0).toLocaleString('fr-FR')
+                                      : (val || 0) % 1 === 0
+                                        ? val || 0
+                                        : (val || 0).toFixed(1)}
+                                  </Text>
+                                </Table.Td>
+                              );
+                            })}
+                            <Table.Td ta="center" fw={700} style={{ backgroundColor: 'var(--mantine-color-orange-0)', color: 'var(--mantine-color-orange-9)' }}>
+                              {(() => {
+                                const avg = rowData.average;
+                                return rowFormat === 'money'
+                                  ? Math.round(avg || 0).toLocaleString('fr-FR')
+                                  : (avg || 0) % 1 === 0
+                                    ? avg || 0
+                                    : (avg || 0).toFixed(1);
+                              })()}
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </ScrollArea>
+              </Paper>
+            </>
+          )}
+
+          {/* Comparison Mode Tables */}
+          {viewMode === 'comparison' && matrix && matrix.isComparison && (
+            <>
+              {matrix.tables.map((table: any, _: number) => (
                 <Paper key={table.indicator || 'global'} shadow="sm" radius="md" p="md" withBorder>
                   <Group justify="space-between" mb="md">
                     <Title order={4}>
-                      {matrix.isComparison ? `Comparatif : ${table.label}` : periodType === 'sabata' ? 'Tatitra Sabata' : 'Récapitulatif Périodique'}
+                      {`Comparatif : ${table.label}`}
                     </Title>
                     <Badge variant="light" size="lg">
                       {statsData.periode.du} au {statsData.periode.au}
@@ -1188,7 +1268,7 @@ export default function Stats() {
                       <Table.Thead>
                         <Table.Tr>
                           <Table.Th style={{ minWidth: 200, backgroundColor: 'var(--mantine-color-gray-0)' }}>
-                            {matrix.isComparison ? 'Classe' : 'Rubrique'}
+                            Classe
                           </Table.Th>
                           {matrix.columns.map((col: any) => (
                             <Table.Th key={col.key} ta="center" style={{ minWidth: 80 }}>
@@ -1201,7 +1281,7 @@ export default function Stats() {
                           >
                             MOYENNE
                           </Table.Th>
-                          {matrix.isComparison && table.hasPercentage && (
+                          {table.hasPercentage && (
                             <Table.Th
                               ta="center"
                               style={{ width: 80, backgroundColor: 'var(--mantine-color-blue-0)', color: 'var(--mantine-color-blue-9)' }}
@@ -1212,15 +1292,12 @@ export default function Stats() {
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
-                        {(matrix.isComparison ? Object.values(table.rows) : INDICATORS).map((item: any, _idx: number) => {
-                          const rowData = matrix.isComparison ? item : matrix.rows?.[item.key];
-                          if (!rowData) return null;
-
+                        {Object.values(table.rows).map((rowData: any) => {
                           const rowLabel = rowData.label;
-                          const rowFormat = matrix.isComparison ? rowData.format : INDICATORS.find((i) => i.key === item.key)?.format;
+                          const rowFormat = rowData.format;
 
                           return (
-                            <Table.Tr key={item.key || rowLabel}>
+                            <Table.Tr key={rowLabel}>
                               <Table.Td fw={600}>{rowLabel}</Table.Td>
                               {matrix.columns.map((col: any) => {
                                 const val = rowData.byCol?.[col.key] || 0;
@@ -1236,7 +1313,7 @@ export default function Stats() {
                                             ? val || 0
                                             : (val || 0).toFixed(1)}
                                       </Text>
-                                      {matrix.isComparison && table.hasPercentage && pct !== undefined && (
+                                      {table.hasPercentage && pct !== undefined && (
                                         <Badge variant="subtle" size="xs" color={pct > 80 ? 'teal' : pct > 50 ? 'blue' : 'orange'}>
                                           {Math.round(pct)}%
                                         </Badge>
@@ -1255,7 +1332,7 @@ export default function Stats() {
                                       : (avg || 0).toFixed(1);
                                 })()}
                               </Table.Td>
-                              {matrix.isComparison && table.hasPercentage && (
+                              {table.hasPercentage && (
                                 <Table.Td
                                   ta="center"
                                   fw={700}

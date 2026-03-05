@@ -37,7 +37,7 @@ const serializeRegistre = (r: any) => {
 };
 
 const calculerStatistiquesCollectives = (registres: any[]) => {
-  if (registres.length === 0) {
+  if (!registres || registres.length === 0) {
     return {
       totalRegistres: 0,
       numSabbats: 0,
@@ -45,46 +45,49 @@ const calculerStatistiquesCollectives = (registres: any[]) => {
       moyenneApprentissage: 0,
       totalMembresTonga: 0,
       totalNianatraImpito: 0,
+      totalFanatitra: 0,
     };
   }
 
   const sabbats = new Set(registres.map(r => r.createdAt.toISOString().split('T')[0]));
-  const numSabbats = sabbats.size;
-
-  const registresActifs = registres.filter(r => r.mambraTonga > 0);
-
-  if (registresActifs.length === 0) {
-    return {
-      totalRegistres: registres.length,
-      numSabbats,
-      moyennePresence: 0,
-      moyenneApprentissage: 0,
-      totalMembresTonga: 0,
-      totalNianatraImpito: 0,
-    };
-  }
+  const numSabbats = sabbats.size || 1;
 
   let totalPresence = 0;
   let totalApprentissage = 0;
   let totalMembresTonga = 0;
   let totalNianatraImpito = 0;
+  let totalFanatitra = 0;
+  let countWithPresence = 0;
 
-  for (const r of registresActifs) {
+  for (const r of registres) {
     const serialized = serializeRegistre(r);
-    totalPresence += serialized.pourcentTonga;
-    totalApprentissage += serialized.pourcentImpito;
-    totalMembresTonga += r.mambraTonga;
-    totalNianatraImpito += r.nianatraImpito;
+    
+    // Calculer la présence seulement si nbrMambraKilasy > 0
+    if (serialized.nbrMambraKilasy > 0) {
+      totalPresence += serialized.pourcentTonga;
+      countWithPresence++;
+    }
+    
+    // Calculer l'apprentissage seulement si tongaRehetra > 0
+    if (serialized.tongaRehetra > 0) {
+      totalApprentissage += serialized.pourcentImpito;
+    }
+    
+    totalMembresTonga += (r.mambraTonga || 0);
+    totalNianatraImpito += (r.nianatraImpito || 0);
+    totalFanatitra += (r.fanatitra || 0);
   }
+
+  const effectiveCount = countWithPresence > 0 ? countWithPresence : registres.length;
 
   return {
     totalRegistres: registres.length,
-    totalRegistresActifs: registresActifs.length,
     numSabbats,
-    moyennePresence: Number((totalPresence / registresActifs.length).toFixed(2)),
-    moyenneApprentissage: Number((totalApprentissage / registresActifs.length).toFixed(2)),
+    moyennePresence: countWithPresence > 0 ? Number((totalPresence / countWithPresence).toFixed(2)) : 0,
+    moyenneApprentissage: registres.length > 0 ? Number((totalApprentissage / registres.length).toFixed(2)) : 0,
     totalMembresTonga,
     totalNianatraImpito,
+    totalFanatitra,
   };
 };
 
@@ -94,15 +97,14 @@ export const getSummary = async (req: Request, res: Response) => {
 
     const where: any = {};
     if (dateDebut && dateFin) {
-      // Inclure toute la journée de fin
-      // On utilise le jour suivant à 00:00:00 pour être sûr d'inclure toute la journée
-      const startDate = new Date(dateDebut as string);
-      const endDate = new Date(dateFin as string);
-      endDate.setDate(endDate.getDate() + 1); // Jour suivant
-      
+      // Inclure toute la journée de début et de fin
+      // On crée des dates avec l'heure explicite pour éviter les problèmes de timezone
+      const startDate = new Date(`${dateDebut}T00:00:00`);
+      const endDate = new Date(`${dateFin}T23:59:59`);
+
       where.createdAt = {
         gte: startDate,
-        lt: endDate, // Strictement inférieur au jour suivant
+        lte: endDate, // Inclure toute la journée de fin
       };
     }
 
@@ -177,17 +179,16 @@ export const getStatsKilasyPeriode = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Classe non trouvée' });
     }
 
-    // Inclure toute la journée de fin
-    const startDate = new Date(dateDebut as string);
-    const endDate = new Date(dateFin as string);
-    endDate.setDate(endDate.getDate() + 1); // Jour suivant
+    // Inclure toute la journée de début et de fin avec heures explicites
+    const startDate = new Date(`${dateDebut}T00:00:00`);
+    const endDate = new Date(`${dateFin}T23:59:59`);
 
     const registres = await prisma.registre.findMany({
       where: {
         kilasyId: id,
         createdAt: {
           gte: startDate,
-          lt: endDate, // Strictement inférieur au jour suivant
+          lte: endDate,
         }
       },
       include: { kilasy: true }
