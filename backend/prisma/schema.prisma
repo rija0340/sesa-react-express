@@ -1,0 +1,63 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  roles     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KilasyLasitra {
+  id          Int      @id @default(autoincrement())
+  nom         String
+  trancheAge  String
+  description String?
+  kilasies    Kilasy[]
+}
+
+model Kilasy {
+  id             Int            @id @default(autoincrement())
+  nom            String         @unique
+  description    String?
+  nbrMambra      Int?
+  nbrMambraUsed  String         @default("registre")
+  kilasyLasitra  KilasyLasitra? @relation(fields: [lasitraId], references: [id])
+  lasitraId      Int?
+  registres      Registre[]
+}
+
+model Registre {
+  id                   Int      @id @default(autoincrement())
+  mambraTonga          Int      @default(0)
+  mpamangy             Int      @default(0)
+  tongaRehetra         Int      @default(0)
+  nianatraImpito       Int      @default(0)
+  asafi                Int      @default(0)
+  asaSoa               Int      @default(0)
+  fampianaranaBaiboly  Int      @default(0)
+  bokyTrakta           Int      @default(0)
+  semineraKaoferansa   Int      @default(0)
+  alasarona            Int      @default(0)
+  nahavitaFampTaratasy Int      @default(0)
+  batisaTami           Int      @default(0)
+  fanatitra            Float    @default(0)
+  nbrMambraKilasy      Int?
+  createdAt            DateTime
+  processedAt          DateTime @default(now())
+  kilasy               Kilasy   @relation(fields: [kilasyId], references: [id])
+  kilasyId             Int
+
+  @@index([createdAt])
+  @@index([kilasyId])
+}

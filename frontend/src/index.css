@@ -1,0 +1,14 @@
+:root {
+  --mantine-color-blue-filled: var(--mantine-color-blue-6);
+  --mantine-color-blue-light: var(--mantine-color-blue-0);
+  --mantine-color-blue-light-color: var(--mantine-color-blue-8);
+}
+
+body {
+  margin: 0;
+  font-family: var(--mantine-font-family);
+}
+
+* {
+  box-sizing: border-box;
+}
